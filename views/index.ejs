@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>内部留言板</title>
+  <style>
+  body{
+    width: 80%;
+    margin: 0 auto;
+  }    
+    .out{
+      width: 45%;
+      border: 1px solid red;
+      background-color: #aff;
+      border-radius: 5px;
+      margin-top: 15px;
+      padding: 5px 15px 0 15px;
+    }
+    .pager>.active>a{
+      background: lightcoral;
+    }
+  </style>
+</head>
+<body>
+<form action="/message/tijiao" method="POST">
+  姓名： <input type="text" name='username' required><br><br>
+  留言： <textarea name="message" required></textarea><br><br>
+  <input type="submit" value="提交">
+</form>
+<hr>
+<nav aria-label="Page navigation page">
+  <ul class="pagination pager up">
+    <li class="<%= current==1 ? 'disabled' : '' %>">
+      <a href="/message?page=<%= current==1 ? 1 : current-1 %>" aria-label="Previous" >
+        <span aria-hidden="true">&laquo;</span>
+      </a>
+    </li>
+    <%for(var i=0;i<pages;i++){%>
+    <li class="<%= current==i+1 ? 'active' : '' %>">
+      <a href="/message?page=<%= i+1 %>"><%= i+1 %></a>
+    </li>
+    <%}%>
+    <li class="<%= current==pages ? 'disabled' : '' %>">
+      <a href="/message?page=<%= current==pages ? current :current+1 %>" aria-label="Next">
+        <span aria-hidden="true">&raquo;</span>
+      </a>
+    </li>
+  </ul>
+</nav>
+<% for(var i=0;i<msg.length;i++){%>
+  <div class="out">
+    <p><b><%= msg[i].username %></b>说:</p>
+    <p><%= msg[i].message %></p>
+    <p><%= msg[i].date %></p>
+    <a href="javascript:;" onclick="modify(this)">编辑</a>&nbsp;&nbsp;&nbsp;
+    <a href="javascript:;" onclick="del('<%= msg[i]._id %>')">删除</a>
+  </div>
+<%}%>
+<div class="out last">
+  <ul class="pager">
+    <li><a href="#">Previous</a></li>
+    <li><a href="#">Next</a></li>
+  </ul>
+</div>
+</body>
+<script src="/js/jquery.min.js"></script>
+<script>
+  var oldMsg='';//保持旧的留言信息
+  var canSend=false;//是否可以发送请求
+  var id="";//被编辑的留言的id
+  //修改第一步：将信息区域替换成文本域
+  function modify(i){
+    // 解决可以点多次编辑的方法
+    // 方法1:
+    /* if(oldMsg!=""){
+        return ;
+    } */
+    // 定义的变量是一个jQuery对象,需要在前面加一个$,用于区分div元素
+    var $div=$(i).prev().prev();//message的p标签
+    //保存旧留言
+    oldMsg=$div.html();
+    //方法2:给文本框加一个onblur事件
+    $div.html('<textarea name="message" row="2" onblur="send(this)"></textarea>')
+    $div.find('textarea').focus();//自动获取焦点
+  }
+  //修改第二步：发送请求
+  function send(i){
+    var val=$(i).val().trim();//多行文本域的值
+    if(val==''){
+      alert('数据不能为空')
+      $(i).parent().html(oldMsg);//将原来的数据重新填入
+      oldMsg='';//重置全局变量
+      return ;
+    }
+    //修改数据
+    //取id
+    var id=$(i).parent().parent().find('a:contains("删除")').attr('onclick')
+    id=id.substring(id.indexOf("'")+1,id.lastIndexOf("'"));
+    // console.log(id)
+    $.ajax({
+      url:"/message/modify",
+      data:{
+        id:id,message:val
+      },
+      method:'post',
+      success:function(result){
+        if(result.status==1){
+          alert(result.msg)
+          return
+        }
+        //修改成功 将文本框替换成新的内容
+        $(i).parent().html(val);
+        oldMsg='';//重置
+      }
+    })
+
+  }
+  function del(id){
+    var f=confirm('是否要删除该留言');
+    if(!f){
+      return ;
+    }
+    //确认删除
+    $.ajax({
+      url:'/message/del?id='+id,
+      success:function(response){
+        // console.log(response)
+        if(response.status==1){
+          alert(response.msg)
+          return ;
+        }
+        //删除成功 
+        location.href='/'
+      }
+    })
+  }
+</script>
+</html>
